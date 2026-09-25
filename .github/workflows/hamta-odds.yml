@@ -1,0 +1,58 @@
+# .github/workflows/hamta-odds.yml
+#
+# Kör oddshämtningen på schema, utan att någon dator behöver vara på.
+#
+# Kostnadslogik: jobbet startar varje timme, men fetch_odds.py frågar först
+# gratis-endpointen om det finns någon match inom fönstret. Finns ingen avslutar
+# den utan att förbruka en enda kredit. Under kalenderuppehåll kostar alltså
+# hela schemat noll.
+#
+# OBS om precision: GitHub Actions cron är inte exakt. Jobb kan fördröjas från
+# några minuter upp till en timme när plattformen är belastad. Ett fönster på
+# 6 timmar med körning varje timme ger ändå flera snapshots per match, varav det
+# sista normalt ligger nära avspark. Räkna inte med att träffa en exakt minut.
+ 
+name: Hämta odds
+ 
+on:
+  schedule:
+    # Varje hel timme. Tiderna är UTC.
+    - cron: "0 * * * *"
+  workflow_dispatch:        # gör att du kan köra manuellt från Actions-fliken
+ 
+concurrency:
+  group: hamta-odds
+  cancel-in-progress: false
+ 
+permissions:
+  contents: write           # krävs för att kunna committa CSV-filen
+ 
+jobs:
+  hamta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+ 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+ 
+      - name: Hämta odds
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_REGIONER: "eu,uk"
+          ODDS_MARKNADER: "h2h"
+        run: python3 fetch_odds.py --ut odds --fonster 6
+ 
+      - name: Spara ny fil
+        run: |
+          if [ -z "$(git status --porcelain odds/)" ]; then
+            echo "Inga nya filer – ingenting att committa."
+            exit 0
+          fi
+          git config user.name  "odds-bot"
+          git config user.email "odds-bot@users.noreply.github.com"
+          git add odds/
+          git commit -m "Odds $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
+ 
