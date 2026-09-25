@@ -11,39 +11,48 @@
 # några minuter upp till en timme när plattformen är belastad. Ett fönster på
 # 6 timmar med körning varje timme ger ändå flera snapshots per match, varav det
 # sista normalt ligger nära avspark. Räkna inte med att träffa en exakt minut.
- 
+
 name: Hämta odds
- 
+
 on:
   schedule:
     # Varje hel timme. Tiderna är UTC.
     - cron: "0 * * * *"
   workflow_dispatch:        # gör att du kan köra manuellt från Actions-fliken
- 
+
 concurrency:
   group: hamta-odds
   cancel-in-progress: false
- 
+
 permissions:
   contents: write           # krävs för att kunna committa CSV-filen
- 
+
 jobs:
   hamta:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
- 
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
- 
+
       - name: Hämta odds
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           ODDS_REGIONER: "eu,uk"
           ODDS_MARKNADER: "h2h"
         run: python3 fetch_odds.py --ut odds --fonster 6
- 
+
+      # Index över vilka filer som finns. Behövs för att kunna lista innehållet
+      # utan GitHubs API: raw.githubusercontent.com kan bara hämta en känd
+      # sökväg, inte visa en katalog.
+      - name: Uppdatera filindex
+        run: |
+          mkdir -p odds
+          ls -1 odds/*.csv 2>/dev/null | sort > odds/_index.txt || true
+          wc -l < odds/_index.txt | xargs echo "Filer i index:"
+
       - name: Spara ny fil
         run: |
           if [ -z "$(git status --porcelain odds/)" ]; then
@@ -55,4 +64,3 @@ jobs:
           git add odds/
           git commit -m "Odds $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
- 
