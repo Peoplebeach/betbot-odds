@@ -71,13 +71,26 @@ KOLUMNER = ["hamtad_utc", "liga", "avspark_utc", "hemmalag", "bortalag",
 
 
 def hamta(url: str) -> tuple[list | dict, dict]:
-    """GET med JSON-svar. Returnerar (data, svarsheaders)."""
+    """GET med JSON-svar. Returnerar (data, svarsheaders).
+
+    Allt som går fel — HTTP-fel, nätverksfel, trasig JSON — kastas som
+    RuntimeError med läsbart meddelande. Anroparen ska aldrig behöva skilja på
+    feltyperna, och en stackspårning i en Actions-logg hjälper ingen.
+    """
+    rensad = url.split("?")[0]
     try:
         with urllib.request.urlopen(url, timeout=60) as r:
             return json.loads(r.read().decode("utf-8")), dict(r.headers)
     except urllib.error.HTTPError as e:
         kropp = e.read().decode("utf-8", "replace")[:300]
-        raise RuntimeError(f"HTTP {e.code} för {url.split('?')[0]}: {kropp}") from e
+        hint = " (kontrollera ODDS_API_KEY)" if e.code in (401, 403) else ""
+        raise RuntimeError(f"HTTP {e.code} för {rensad}{hint}: {kropp}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"nätverksfel mot {rensad}: {e.reason}") from e
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise RuntimeError(f"ogiltigt svar från {rensad}: {e}") from e
+    except OSError as e:
+        raise RuntimeError(f"anslutningsfel mot {rensad}: {e}") from e
 
 
 def kommande(liga: str, nyckel: str) -> list[dict]:
@@ -133,11 +146,13 @@ def main() -> int:
 
     # --- Steg 1: gratis kartläggning av vilka ligor som är aktuella ---
     aktuella: list[str] = []
+    misslyckade: list[str] = []
     for liga in LIGOR:
         try:
             ev = kommande(liga, nyckel)
         except RuntimeError as e:
             print(f"  {liga}: kunde inte listas – {e}", file=sys.stderr)
+            misslyckade.append(liga)
             continue
         traffar = 0
         for m in ev:
@@ -156,8 +171,22 @@ def main() -> int:
     antal_mark = len([m for m in MARKNADER.split(",") if m])
     kostnad = len(aktuella) * antal_reg * antal_mark
 
+    # Kunde ingen liga alls listas är det ett fel — inte ett lugnt besked.
+    # Utan detta ser en ogiltig nyckel eller ett nere API exakt likadant ut som
+    # "inga matcher just nu": grön bock och tystnad. Det är samma feltyp som
+    # gjorde att prognosloggen verkade fungera medan den stod stilla.
+    if misslyckade and len(misslyckade) == len(LIGOR):
+        print("\nFEL: ingen liga kunde listas. Kontrollera att ODDS_API_KEY är "
+              "giltig och att API:et svarar. Detta är INTE samma sak som att "
+              "det saknas matcher.", file=sys.stderr)
+        return 1
+    if misslyckade:
+        print(f"\nVARNING: {len(misslyckade)} av {len(LIGOR)} ligor kunde inte "
+              f"listas: {', '.join(misslyckade)}", file=sys.stderr)
+
     if not aktuella:
-        print(f"\nInga matcher inom {args.fonster:g} timmar. "
+        print(f"\nInga matcher inom {args.fonster:g} timmar "
+              f"({len(LIGOR)} ligor kontrollerade, alla svarade). "
               "Inga krediter förbrukade.")
         return 0
 
