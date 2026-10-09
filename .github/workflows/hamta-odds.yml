@@ -1,31 +1,16 @@
-# .github/workflows/hamta-odds.yml
-#
-# Kör oddshämtningen på schema, utan att någon dator behöver vara på.
-#
-# Kostnadslogik: jobbet startar varje timme, men fetch_odds.py frågar först
-# gratis-endpointen om det finns någon match inom fönstret. Finns ingen avslutar
-# den utan att förbruka en enda kredit. Under kalenderuppehåll kostar alltså
-# hela schemat noll.
-#
-# OBS om precision: GitHub Actions cron är inte exakt. Jobb kan fördröjas från
-# några minuter upp till en timme när plattformen är belastad. Ett fönster på
-# 6 timmar med körning varje timme ger ändå flera snapshots per match, varav det
-# sista normalt ligger nära avspark. Räkna inte med att träffa en exakt minut.
-
 name: Hämta odds
 
 on:
   schedule:
-    # Varje hel timme. Tiderna är UTC.
     - cron: "0 * * * *"
-  workflow_dispatch:        # gör att du kan köra manuellt från Actions-fliken
+  workflow_dispatch:
 
 concurrency:
   group: hamta-odds
   cancel-in-progress: false
 
 permissions:
-  contents: write           # krävs för att kunna committa CSV-filen
+  contents: write
 
 jobs:
   hamta:
@@ -37,16 +22,41 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Diagnos (gratis, inga krediter)
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import os, json, urllib.request
+          from datetime import datetime, timezone
+          k = os.environ["ODDS_API_KEY"]
+          u = "https://api.the-odds-api.com/v4/sports/soccer_epl/events?apiKey=" + k
+          with urllib.request.urlopen(u, timeout=60) as r:
+              raw = r.read().decode()
+              print("HTTP", r.status)
+          d = json.loads(raw)
+          print("svarstyp:", type(d).__name__)
+          print("antal event:", len(d) if isinstance(d, list) else "EJ LISTA")
+          print("nu utc:", datetime.now(timezone.utc).isoformat())
+          print("rå början:", raw[:300])
+          for e in (d if isinstance(d, list) else [])[:5]:
+              print("  ", e.get("commence_time"), e.get("home_team"), "-", e.get("away_team"))
+          PY
+
+      - name: Vad finns inom 10 dygn (gratis)
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_REGIONER: "se,eu"
+          ODDS_MARKNADER: "h2h"
+        run: python3 fetch_odds.py --ut odds --fonster 240 --torrkor
+
       - name: Hämta odds
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-          ODDS_REGIONER: "eu,uk"
+          ODDS_REGIONER: "se,eu"
           ODDS_MARKNADER: "h2h"
         run: python3 fetch_odds.py --ut odds --fonster 6
 
-      # Index över vilka filer som finns. Behövs för att kunna lista innehållet
-      # utan GitHubs API: raw.githubusercontent.com kan bara hämta en känd
-      # sökväg, inte visa en katalog.
       - name: Uppdatera filindex
         run: |
           mkdir -p odds
