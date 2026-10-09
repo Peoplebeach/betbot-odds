@@ -55,7 +55,7 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           ODDS_REGIONER: "se,eu"
           ODDS_MARKNADER: "h2h"
-        run: python3 fetch_odds.py --ut odds --fonster 6
+        run: python3 fetch_odds.py --ut odds --fonster 3
 
       - name: Uppdatera filindex
         run: |
