@@ -47,3 +47,4 @@ odds/odds_2026-10-18_1217.csv
 odds/odds_2026-10-18_1417.csv
 odds/odds_2026-10-18_1617.csv
 odds/odds_2026-10-18_1815.csv
+odds/odds_2026-10-19_1430.csv
