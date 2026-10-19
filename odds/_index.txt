@@ -49,3 +49,4 @@ odds/odds_2026-10-18_1617.csv
 odds/odds_2026-10-18_1815.csv
 odds/odds_2026-10-19_1430.csv
 odds/odds_2026-10-19_1624.csv
+odds/odds_2026-10-19_1823.csv
