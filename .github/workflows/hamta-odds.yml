@@ -57,6 +57,12 @@ jobs:
           ODDS_MARKNADER: "h2h"
         run: python3 fetch_odds.py --ut odds --fonster 3
 
+      - name: Pusha notis vid kandidat
+        if: always()
+        env:
+          NTFY_AMNE: ${{ secrets.NTFY_AMNE }}
+        run: python3 notis.py
+
       - name: Uppdatera filindex
         run: |
           mkdir -p odds
