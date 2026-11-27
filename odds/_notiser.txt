@@ -1,3 +1,4 @@
 2026-11-22T16:30:00Z|Liverpool|Manchester United|Manchester United
 2026-11-25T19:45:00Z|Burnley|Birmingham City|Birmingham City
 2026-11-25T19:45:00Z|Bolton Wanderers|West Bromwich Albion|West Bromwich Albion
+2026-11-27T19:45:00Z|Venezia|Bologna|Draw
