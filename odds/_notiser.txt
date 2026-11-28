@@ -2,3 +2,5 @@
 2026-11-25T19:45:00Z|Burnley|Birmingham City|Birmingham City
 2026-11-25T19:45:00Z|Bolton Wanderers|West Bromwich Albion|West Bromwich Albion
 2026-11-27T19:45:00Z|Venezia|Bologna|Draw
+2026-11-28T12:30:00Z|Blackburn Rovers|Charlton Athletic|Charlton Athletic
+2026-11-28T12:30:00Z|Lincoln City|Wolverhampton Wanderers|Wolverhampton Wanderers
